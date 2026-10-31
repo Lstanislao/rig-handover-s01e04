@@ -3,8 +3,11 @@ import { loadConfig, type RigConfig } from './config.js';
 import { readNight } from './digest/reader.js';
 import { lane } from './lane.js';
 import { readStatus } from './status.js';
+import { DigestView } from './views/digest.js';
 import { Layout } from './views/layout.js';
 import { StatusBoard } from './views/status.js';
+
+const NIGHT = /^\d{4}-\d{2}-\d{2}$/;
 
 export function createApp(config: RigConfig = loadConfig()) {
   const app = new Hono();
@@ -26,6 +29,25 @@ export function createApp(config: RigConfig = loadConfig()) {
     const result = readNight(config.runsDir, night);
     if (result === null) return c.json({ error: 'not found' }, 404);
     return c.json(result.rows);
+  });
+
+  app.get('/digest/:night', (c) => {
+    const night = c.req.param('night');
+    const found = NIGHT.test(night) ? readNight(config.runsDir, night) : null;
+    if (found === null) {
+      return c.html(
+        <Layout title="digest" lane={lane()}>
+          <h1>not found</h1>
+          <p class="mute">no run log for {night}</p>
+        </Layout>,
+        404,
+      );
+    }
+    return c.html(
+      <Layout title="digest" lane={lane()}>
+        <DigestView night={found} />
+      </Layout>,
+    );
   });
 
   return app;
